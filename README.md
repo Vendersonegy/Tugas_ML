@@ -28,3 +28,9 @@ pip install -r requirements.txt
 streamlit run app.py
 
 CATATAN PENTING : simpan best.pt di dalam folder model
+
+🧠 Teknologi yang Digunakan
+-Streamlit — membuat tampilan web interaktif dengan Python
+-YOLOv8 (Ultralytics) — model deteksi objek real-time
+-OpenCV — membaca dan menulis frame dari video
+-Python — bahasa utama pengembangan
