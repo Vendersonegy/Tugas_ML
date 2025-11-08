@@ -6,11 +6,11 @@ from detect import run_detection
 # ===========================
 # CONFIGURASI HALAMAN
 # ===========================
-st.set_page_config(page_title="🚦 Deteksi Pelanggaran Lalu Lintas", layout="wide")
-st.title("🚦 Deteksi Pelanggaran Garis Putih & Lampu Merah")
+st.set_page_config(page_title=" Deteksi Pelanggaran Lalu Lintas", layout="wide")
+st.title(" Deteksi Pelanggaran Garis Putih & Lampu Merah")
 st.write("Upload video untuk mendeteksi kendaraan yang melanggar lampu merah atau garis putih.")
 
-st.sidebar.header("⚙️ Pengaturan")
+st.sidebar.header(" Pengaturan")
 st.sidebar.info("Upload video lalu klik tombol deteksi untuk menampilkan hasil deteksi YOLO.")
 
 # ===========================
@@ -23,18 +23,18 @@ if uploaded:
     temp_video = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
     temp_video.write(uploaded.read())
     video_path = temp_video.name
-    st.sidebar.success("✅ Video berhasil diupload!")
+    st.sidebar.success(" Video berhasil diupload!")
     st.video(video_path)
 
 # ===========================
 # JALANKAN DETEKSI
 # ===========================
-if video_path and st.sidebar.button("🚀 Jalankan Deteksi"):
+if video_path and st.sidebar.button(" Jalankan Deteksi"):
     with st.spinner("Memproses video... Mohon tunggu..."):
         hasil = run_detection(video_path, frame_skip=10, max_frames=100)
 
     if hasil:
-        st.success(f"✅ Ditemukan {len(hasil)} hasil deteksi pelanggaran.")
+        st.success(f" Ditemukan {len(hasil)} hasil deteksi pelanggaran.")
         cols = st.columns(3)
         for i, data in enumerate(hasil):
             with cols[i % 3]:
@@ -44,4 +44,5 @@ if video_path and st.sidebar.button("🚀 Jalankan Deteksi"):
                     use_container_width=True
                 )
     else:
-        st.warning("⚠️ Tidak ada pelanggaran terdeteksi pada video ini.")
+        st.warning(" Tidak ada pelanggaran terdeteksi pada video ini.")
+
