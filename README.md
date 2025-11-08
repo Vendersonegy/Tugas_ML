@@ -23,9 +23,6 @@ Petunjuk Instalasi & Menjalankan di Lokal
 1. Clone Repository
 git clone https://github.com/Vendersonegy/Tugas_ML.git
 cd Tugas_ML
-3. Buat Virtual Environment
-python -m venv venv
-venv\Scripts\activate (Windows)
 4. Instal Library yang Diperlukan
 pip install -r requirements.txt
 5. Jalankan Streamlit
