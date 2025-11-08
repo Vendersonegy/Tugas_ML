@@ -9,8 +9,6 @@ Anggota Kelompok
 2.Sanjaya Citra (221111926)
 3.Venderson Egy Agatran (221110627)
 
-URL Aplikasi Live:
-
 Petunjuk Penggunaan Aplikasi
 1. Buka aplikasi melalui URL di atas atau jalankan secara lokal.
 2. Pilih video atau input url yang ingin dianalisis.
@@ -22,15 +20,15 @@ Petunjuk Instalasi & Menjalankan di Lokal
 1. Clone Repository
 git clone https://github.com/Vendersonegy/Tugas_ML.git
 cd Tugas_ML
-4. Instal Library yang Diperlukan
+2. Instal Library yang Diperlukan
 pip install -r requirements.txt
-5. Jalankan Streamlit
+3. Jalankan Streamlit
 streamlit run app.py
 
 CATATAN PENTING : simpan best.pt di dalam folder model
 
 🧠 Teknologi yang Digunakan
--Streamlit — membuat tampilan web interaktif dengan Python
--YOLOv8 (Ultralytics) — model deteksi objek real-time
--OpenCV — membaca dan menulis frame dari video
--Python — bahasa utama pengembangan
+- Streamlit — membuat tampilan web interaktif dengan Python
+- YOLOv8 (Ultralytics) — model deteksi objek real-time
+- OpenCV — membaca dan menulis frame dari video
+- Python — bahasa utama pengembangan
