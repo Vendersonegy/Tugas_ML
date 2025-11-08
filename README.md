@@ -25,7 +25,9 @@ pip install -r requirements.txt
 3. Jalankan Streamlit
 streamlit run app.py
 
-CATATAN PENTING : simpan best.pt di dalam folder model
+CATATAN PENTING : 
+- ambil file best.pt dan firebase-adminSdk pada link onedrive: https://mikroskilacid-my.sharepoint.com/personal/221111018_students_mikroskil_ac_id/_layouts/15/onedrive.aspx?id=%2Fpersonal%2F221111018%5Fstudents%5Fmikroskil%5Fac%5Fid%2FDocuments%2FMachine%20Learning%20%2D%20Kelompok%204&ga=1
+- simpan best.pt di dalam folder model
 
 🧠 Teknologi yang Digunakan
 - Streamlit — membuat tampilan web interaktif dengan Python
