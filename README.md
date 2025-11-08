@@ -1,6 +1,7 @@
 # Tugas_ML
-Proyek ini merupakan demonstrasi aplikasi Machine Learning berbasis Python yang menggunakan model AI untuk melakukan analisis dan prediksi data.
+Proyek ini merupakan demonstrasi aplikasi Machine Learning berbasis Python yang menggunakan model AI untuk melakukan Traffic Detection.
 Aplikasi terintegrasi dengan Firebase untuk penyimpanan dan sinkronisasi data secara real-time menggunakan Firebase Admin SDK.
+AI ini dibungkus menggunakan Framework Python Streamlit untuk memudahkan proses pembuatan Frontend serta integrasi library yang lancar dan kecepatan proses pengembangan yang signifikan
 Video demo menunjukkan seluruh proses mulai dari instalasi library, setup environment, konfigurasi API key Firebase, hingga menjalankan fungsi utama aplikasi.
 
 Anggota Kelompok
