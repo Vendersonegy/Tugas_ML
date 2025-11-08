@@ -8,6 +8,9 @@ Anggota Kelompok
 2.Sanjaya Citra (221111926)
 3.Venderson Egy Agatran (221110627)
 
+URL Aplikasi Live:
+
+
 Petunjuk Penggunaan Aplikasi
 1. Buka aplikasi melalui URL di atas atau jalankan secara lokal.
 2. Pilih dataset atau input data yang ingin dianalisis.
@@ -17,8 +20,14 @@ Petunjuk Penggunaan Aplikasi
 
 Petunjuk Instalasi & Menjalankan di Lokal
 1. Clone Repository
-
-2. Buat Virtual Environment
+git clone https://github.com/Vendersonegy/Tugas_ML.git
+cd Tugas_ML
+3. Buat Virtual Environment
 python -m venv venv
-venv\Scripts\activate   # (Windows)
-source venv/bin/activate  #
+venv\Scripts\activate (Windows)
+4. Instal Library yang Diperlukan
+pip install -r requirements.txt
+5. Jalankan Streamlit
+streamlit run app.py
+CATATAN PENTING : simpan best.pt di dalam folder model
+
