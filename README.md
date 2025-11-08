@@ -31,3 +31,5 @@ pip install -r requirements.txt
 streamlit run app.py
 CATATAN PENTING : simpan best.pt di dalam folder model
 
+Petunjuk Penggunaan aplikasi
+1.
