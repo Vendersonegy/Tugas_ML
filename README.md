@@ -26,4 +26,5 @@ cd Tugas_ML
 pip install -r requirements.txt
 5. Jalankan Streamlit
 streamlit run app.py
+
 CATATAN PENTING : simpan best.pt di dalam folder model
