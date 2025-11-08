@@ -32,3 +32,5 @@ CATATAN PENTING : simpan best.pt di dalam folder model
 - YOLOv8 (Ultralytics) — model deteksi objek real-time
 - OpenCV — membaca dan menulis frame dari video
 - Python — bahasa utama pengembangan
+- Firebase	Menyimpan hasil deteksi secara online dan sinkronisasi data real-time
+- NumPy & Torch	Mendukung operasi matematis dan inference YOLO di backend
