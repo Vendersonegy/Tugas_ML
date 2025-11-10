@@ -27,7 +27,7 @@ streamlit run app.py
 
 CATATAN PENTING : 
 - ambil file best.pt dan firebase-adminSdk pada link onedrive
-- simpan best.pt di dalam folder model
+- simpan best.pt dan firebase-adminSdk di dalam folder model
 
 🧠 Teknologi yang Digunakan
 - Streamlit — membuat tampilan web interaktif dengan Python
