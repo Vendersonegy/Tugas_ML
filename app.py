@@ -1,76 +1,41 @@
 import streamlit as st
 
+# WAJIB: Perintah ini harus yang pertama kali dijalankan
 st.set_page_config(
     page_title="Sistem Deteksi Pelanggaran",
     layout="wide"
 )
 
-import os
-import streamlit as st
 import pandas as pd
+import os
 from PIL import Image
+from detect import run_detection
 from firebase import get_all_detections
 
-# ===============================
-# DETEKSI ENVIRONMENT
-# ===============================
-IS_CLOUD = "STREAMLIT_RUNTIME" in os.environ
-
-# ===============================
-# PAGE CONFIG
-# ===============================
-st.set_page_config(
-    page_title="Sistem Deteksi Pelanggaran",
-    layout="wide"
-)
-
-# ===============================
-# SIDEBAR
-# ===============================
+# Sidebar Menu
 st.sidebar.title("🚦 Menu")
 menu = st.sidebar.radio(
     "Pilih Fitur",
-    [
-        "Deteksi Video",
-        "Vehicle Frequency",
-        "Repeat Offender & Riwayat"
-    ]
+    ["Deteksi Video", "Vehicle Frequency", "Repeat Offender dan Riwayat Data"]
 )
-
-# ===============================
-# CACHE DATA
-# ===============================
 
 @st.cache_data(ttl=60)
 def fetch_data():
     data = get_all_detections()
-    return data
+    return data if data is not None else []
 
 raw_data = fetch_data()
 
+# Tampilkan peringatan jika database tidak terhubung
 if not raw_data and menu != "Deteksi Video":
-    st.warning("⚠️ Koneksi ke Firebase bermasalah atau data kosong. Pastikan Secrets sudah diisi di Streamlit Cloud.")
+    st.sidebar.warning("⚠️ Database tidak terhubung atau data kosong.")
 
 # ===============================
-# MODE 1 — DETEKSI VIDEO (LOCAL ONLY)
+# MODE 1 — DETEKSI VIDEO
 # ===============================
 if menu == "Deteksi Video":
     st.title("🚦 Deteksi Pelanggaran Lalu Lintas")
-
-    if IS_CLOUD:
-        st.warning(
-            "⚠️ Fitur deteksi video **dinonaktifkan di Cloud**.\n\n"
-            "Silakan jalankan aplikasi ini secara **local** untuk melakukan deteksi."
-        )
-        st.stop()
-
-    # ⬇️ IMPORT DETECT DI DALAM BLOK (AMAN)
-    from detect import run_detection
-
-    uploaded_file = st.file_uploader(
-        "Upload Video",
-        type=["mp4", "avi", "mov"]
-    )
+    uploaded_file = st.file_uploader("Upload Video", type=["mp4", "avi", "mov"])
 
     if uploaded_file:
         temp_path = "temp_video.mp4"
@@ -80,28 +45,38 @@ if menu == "Deteksi Video":
         if st.button("▶️ Jalankan Deteksi"):
             with st.spinner("Memproses video..."):
                 results = run_detection(temp_path)
-
+            
             st.success(f"Selesai! Total deteksi: {len(results)}")
 
-            terbaca = [r for r in results if r["plate_number"] != "TIDAK TERBACA"]
-            tidak_terbaca = [r for r in results if r["plate_number"] == "TIDAK TERBACA"]
+            # PEMISAHAN DATA
+            terbaca = [r for r in results if r.get('plate_number') != "TIDAK TERBACA"]
+            tidak_terbaca = [r for r in results if r.get('plate_number') == "TIDAK TERBACA"]
 
-            tab1, tab2 = st.tabs([
-                f"✅ Terbaca ({len(terbaca)})",
-                f"❌ Tidak Terbaca ({len(tidak_terbaca)})"
-            ])
+            tab1, tab2 = st.tabs([f"✅ Terbaca ({len(terbaca)})", f"❌ Tidak Terbaca ({len(tidak_terbaca)})"])
 
             with tab1:
-                for r in terbaca:
-                    if os.path.exists(r["image_path"]):
-                        st.image(Image.open(r["image_path"]), width=300)
-                    st.success(f"Plat: {r['plate_number']}")
+                if not terbaca:
+                    st.info("Tidak ada plat yang terbaca jelas.")
+                else:
+                    cols = st.columns(3)
+                    for idx, res in enumerate(terbaca):
+                        with cols[idx % 3]:
+                            img_path = res.get("relative_path") # Menggunakan path relatif
+                            if img_path and os.path.exists(img_path):
+                                st.image(Image.open(img_path), use_container_width=True)
+                            st.write(f"**Plat: {res.get('plate_number')}**")
 
             with tab2:
-                for r in tidak_terbaca:
-                    if os.path.exists(r["image_path"]):
-                        st.image(Image.open(r["image_path"]), width=300)
-                    st.error("TIDAK TERBACA")
+                if not tidak_terbaca:
+                    st.info("Semua plat terbaca.")
+                else:
+                    cols = st.columns(3)
+                    for idx, res in enumerate(tidak_terbaca):
+                        with cols[idx % 3]:
+                            img_path = res.get("relative_path")
+                            if img_path and os.path.exists(img_path):
+                                st.image(Image.open(img_path), use_container_width=True)
+                            st.write("❌ TIDAK TERBACA")
 
 # ===============================
 # MODE 2 — VEHICLE FREQUENCY
