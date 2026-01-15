@@ -5,11 +5,6 @@ from PIL import Image
 from firebase import get_all_detections
 from detect import run_detection
 
-st.set_page_config(
-    page_title="Sistem Deteksi Pelanggaran",
-    layout="wide"
-)
-
 # Sidebar Menu
 st.sidebar.title("🚦 Menu")
 menu = st.sidebar.radio(
