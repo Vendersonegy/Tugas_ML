@@ -33,11 +33,16 @@ menu = st.sidebar.radio(
 # ===============================
 # CACHE DATA
 # ===============================
+
 @st.cache_data(ttl=60)
 def fetch_data():
-    return get_all_detections()
+    data = get_all_detections()
+    return data
 
 raw_data = fetch_data()
+
+if not raw_data and menu != "Deteksi Video":
+    st.warning("⚠️ Koneksi ke Firebase bermasalah atau data kosong. Pastikan Secrets sudah diisi di Streamlit Cloud.")
 
 # ===============================
 # MODE 1 — DETEKSI VIDEO (LOCAL ONLY)
