@@ -8,12 +8,11 @@ KEY_PATH = os.path.join(BASE_DIR, "firebase-key.json")
 
 def initialize_firebase():
     if not firebase_admin._apps:
-        # 1. Cek Streamlit Secrets (Cloud)
         if "firebase" in st.secrets:
             try:
                 secret_dict = dict(st.secrets["firebase"])
                 if "private_key" in secret_dict:
-                    # Bersihkan karakter newline agar format PEM valid
+                    # Menghapus spasi dan memperbaiki karakter newline yang rusak
                     pk = secret_dict["private_key"].strip().replace("\\n", "\n")
                     secret_dict["private_key"] = pk
                 
