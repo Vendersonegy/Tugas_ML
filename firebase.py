@@ -3,75 +3,92 @@ from firebase_admin import credentials, firestore
 import os
 import streamlit as st
 
-# Path untuk penggunaan lokal
+# Mendapatkan path absolut untuk penggunaan lokal
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 KEY_PATH = os.path.join(BASE_DIR, "firebase-key.json")
 
 def initialize_firebase():
+    """
+    Inisialisasi Firebase dengan dukungan Streamlit Secrets (Cloud) 
+    dan file JSON (Lokal).
+    """
     if not firebase_admin._apps:
-        # 1. Coba dari Streamlit Secrets (Cloud)
+        # 1. Coba inisialisasi menggunakan Streamlit Secrets (untuk Cloud)
         if "firebase" in st.secrets:
             try:
+                # Mengambil data dari [firebase] di Secrets TOML
                 secret_dict = dict(st.secrets["firebase"])
+                
+                # Membersihkan format private_key agar terbaca sebagai file PEM yang valid
                 if "private_key" in secret_dict:
-                    secret_dict["private_key"] = secret_dict["private_key"].replace("\\n", "\n")
+                    # Menghapus spasi tambahan dan memperbaiki karakter newline
+                    cleaned_key = secret_dict["private_key"].strip().replace("\\n", "\n")
+                    secret_dict["private_key"] = cleaned_key
+                
                 cred = credentials.Certificate(secret_dict)
                 firebase_admin.initialize_app(cred)
                 return firestore.client()
             except Exception as e:
-                st.error(f"Gagal inisialisasi Secrets: {e}")
+                st.error(f"Gagal inisialisasi Firebase dari Secrets: {e}")
 
-        # 2. Coba dari File Lokal
-        elif os.path.exists(KEY_PATH):
+        # 2. Coba inisialisasi menggunakan file JSON (untuk Lokal)
+        if os.path.exists(KEY_PATH):
             try:
                 cred = credentials.Certificate(KEY_PATH)
                 firebase_admin.initialize_app(cred)
                 return firestore.client()
             except Exception as e:
-                st.error(f"Gagal inisialisasi File: {e}")
+                st.error(f"Gagal inisialisasi Firebase dari file lokal: {e}")
+        
+        # Jika kedua metode di atas gagal
+        st.warning("⚠️ Database Firebase tidak terhubung. Cek Secrets di Cloud atau file JSON di Lokal.")
+        return None
     
-    # Jika sudah terinisialisasi sebelumnya
-    elif firebase_admin._apps:
-        return firestore.client()
+    # Jika sudah pernah diinisialisasi sebelumnya
+    return firestore.client()
 
-    return None
-
-# Global variable db
+# Variabel global Database
 db = initialize_firebase()
 
-def get_all_detections():
-    """Mengambil semua data dengan proteksi AttributeError"""
+def save_detection_result(data):
+    """
+    Menyimpan data hasil deteksi ke koleksi 'pelanggaran'.
+    """
     global db
     if db is None:
-        # Coba inisialisasi ulang sekali lagi jika db masih None
+        db = initialize_firebase() # Mencoba inisialisasi ulang
+        if db is None:
+            return False
+            
+    try:
+        db.collection("pelanggaran").add(data)
+        return True
+    except Exception as e:
+        print(f"❌ Gagal menyimpan ke Firestore: {e}")
+        return False
+
+def get_all_detections():
+    """
+    Mengambil semua data riwayat deteksi, diurutkan dari yang terbaru.
+    """
+    global db
+    if db is None:
         db = initialize_firebase()
         if db is None:
-            return [] # Kembalikan list kosong jika tetap gagal
+            return []
     
     try:
+        # Mengurutkan berdasarkan field 'timestamp' secara descending
         docs = db.collection("pelanggaran").order_by("timestamp", direction=firestore.Query.DESCENDING).stream()
         results = []
         for doc in docs:
             results.append(doc.to_dict())
         return results
     except Exception as e:
-        print(f"Error fetching data: {e}")
+        print(f"❌ Gagal mengambil data dari Firestore: {e}")
         return []
-
-def save_detection_result(data):
-    """Menyimpan data dengan proteksi AttributeError"""
-    global db
-    if db is None:
-        db = initialize_firebase()
-        if db is None: return False
-        
-    try:
-        db.collection("pelanggaran").add(data)
-        return True
-    except Exception as e:
-        print(f"Error saving data: {e}")
-        return False
-
+    
+    
 # import firebase_admin
 # from firebase_admin import credentials, firestore
 # import os
