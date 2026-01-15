@@ -2,7 +2,7 @@
 Proyek ini merupakan demonstrasi aplikasi Machine Learning berbasis Python yang menggunakan model AI untuk melakukan Traffic Detection.
 Aplikasi terintegrasi dengan Firebase untuk penyimpanan dan sinkronisasi data secara real-time menggunakan Firebase Admin SDK.
 AI ini dibungkus menggunakan Framework Python Streamlit untuk memudahkan proses pembuatan Frontend serta integrasi library yang lancar dan kecepatan proses pengembangan yang signifikan.
-Video demo menunjukkan seluruh proses mulai dari instalasi library, setup environment, konfigurasi API key Firebase, hingga menjalankan fungsi utama aplikasi.
+Video demo memberikan penjelasan terhadap Machine Learning atau AI dari Traffic detection yang menggunakan Google Collab sebagai fondasi, serta menjelaskan proses/tahap-tahap untuk menjalankan aplikasi pada lokal komputer. 
 
 Anggota Kelompok
 1.Jordan (221111018)
@@ -32,3 +32,5 @@ CATATAN PENTING : simpan best.pt di dalam folder model
 - YOLOv8 (Ultralytics) — model deteksi objek real-time
 - OpenCV — membaca dan menulis frame dari video
 - Python — bahasa utama pengembangan
+- Firebase —	Menyimpan hasil deteksi secara online dan sinkronisasi data real-time
+- NumPy & Torch —	Mendukung operasi matematis dan inference YOLO di backend

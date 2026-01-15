@@ -1,0 +1,6 @@
+# 🔐 Firebase secrets
+firebase-key.json
+
+# Python cache
+__pycache__/
+*.pyc
