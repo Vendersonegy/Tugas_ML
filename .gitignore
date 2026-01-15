@@ -4,3 +4,7 @@ firebase-key.json
 # Python cache
 __pycache__/
 *.pyc
+
+# App Outputs & Temp Files
+outputs/
+temp_video.mp4
