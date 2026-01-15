@@ -1,3 +1,181 @@
+import os
+import streamlit as st
+import pandas as pd
+from PIL import Image
+
+# ===============================
+# ENV DETECTION
+# ===============================
+IS_CLOUD = "STREAMLIT_RUNTIME" in os.environ
+
+# ===============================
+# PAGE CONFIG
+# ===============================
+st.set_page_config(
+    page_title="Sistem Deteksi Pelanggaran",
+    layout="wide"
+)
+
+# ===============================
+# SAFE IMPORT (TANPA CV2 DI CLOUD)
+# ===============================
+if not IS_CLOUD:
+    from detect import run_detection
+
+from firebase import get_all_detections
+
+# ===============================
+# SIDEBAR
+# ===============================
+st.sidebar.title("🚦 Menu")
+menu = st.sidebar.radio(
+    "Pilih Fitur",
+    [
+        "Deteksi Video",
+        "Vehicle Frequency",
+        "Repeat Offender & Riwayat"
+    ]
+)
+
+# ===============================
+# CACHE DATA
+# ===============================
+@st.cache_data(ttl=60)
+def fetch_data():
+    return get_all_detections()
+
+raw_data = fetch_data()
+
+# ===============================
+# MODE 1 — DETEKSI VIDEO (LOCAL ONLY)
+# ===============================
+if menu == "Deteksi Video":
+    st.title("🚦 Deteksi Pelanggaran Lalu Lintas")
+
+    if IS_CLOUD:
+        st.warning(
+            "⚠️ Fitur deteksi video hanya tersedia di **local environment**.\n\n"
+            "Versi cloud digunakan untuk **dashboard & analisis data**."
+        )
+        st.stop()
+
+    uploaded_file = st.file_uploader(
+        "Upload Video",
+        type=["mp4", "avi", "mov"]
+    )
+
+    if uploaded_file:
+        temp_path = "temp_video.mp4"
+        with open(temp_path, "wb") as f:
+            f.write(uploaded_file.read())
+
+        if st.button("▶️ Jalankan Deteksi"):
+            with st.spinner("Memproses video..."):
+                results = run_detection(temp_path)
+
+            st.success(f"Selesai! Total deteksi: {len(results)}")
+
+            terbaca = [r for r in results if r["plate_number"] != "TIDAK TERBACA"]
+            tidak_terbaca = [r for r in results if r["plate_number"] == "TIDAK TERBACA"]
+
+            tab1, tab2 = st.tabs([
+                f"✅ Terbaca ({len(terbaca)})",
+                f"❌ Tidak Terbaca ({len(tidak_terbaca)})"
+            ])
+
+            # ----- TAB TERBACA -----
+            with tab1:
+                if not terbaca:
+                    st.info("Tidak ada plat yang terbaca.")
+                else:
+                    cols = st.columns(3)
+                    for i, r in enumerate(terbaca):
+                        with cols[i % 3]:
+                            st.write(f"Frame: {r['frame_id']}")
+                            if os.path.exists(r["image_path"]):
+                                st.image(Image.open(r["image_path"]), use_column_width=True)
+                            st.success(f"Plat: {r['plate_number']}")
+
+            # ----- TAB TIDAK TERBACA -----
+            with tab2:
+                if not tidak_terbaca:
+                    st.info("Semua plat terbaca.")
+                else:
+                    cols = st.columns(3)
+                    for i, r in enumerate(tidak_terbaca):
+                        with cols[i % 3]:
+                            st.write(f"Frame: {r['frame_id']}")
+                            if os.path.exists(r["image_path"]):
+                                st.image(Image.open(r["image_path"]), use_column_width=True)
+                            st.error("TIDAK TERBACA")
+
+# ===============================
+# MODE 2 — VEHICLE FREQUENCY
+# ===============================
+elif menu == "Vehicle Frequency":
+    st.title("📊 Vehicle Frequency")
+
+    if not raw_data:
+        st.warning("Belum ada data.")
+    else:
+        df = pd.DataFrame(raw_data)
+
+        # ❌ EXCLUDE TIDAK TERBACA
+        df = df[df["plate_number"] != "TIDAK TERBACA"]
+
+        freq = df.groupby("plate_number").agg({
+            "video_source": "nunique",
+            "timestamp": ["count", "max"]
+        }).reset_index()
+
+        freq.columns = [
+            "Plat Nomor",
+            "Lokasi Berbeda",
+            "Total Muncul",
+            "Terakhir Terlihat"
+        ]
+
+        st.subheader("🔝 Top 10 Kendaraan")
+        st.bar_chart(
+            freq.set_index("Plat Nomor")["Total Muncul"].head(10)
+        )
+
+        st.dataframe(freq, use_container_width=True)
+
+# ===============================
+# MODE 3 — REPEAT OFFENDER & RIWAYAT
+# ===============================
+elif menu == "Repeat Offender & Riwayat":
+    st.title("🚨 Repeat Offender")
+
+    if raw_data:
+        df = pd.DataFrame(raw_data)
+
+        # ❌ EXCLUDE TIDAK TERBACA
+        df = df[df["plate_number"] != "TIDAK TERBACA"]
+
+        repeat = df.groupby("plate_number").size().reset_index(
+            name="total_pelanggaran"
+        )
+
+        repeat = repeat.sort_values(
+            "total_pelanggaran", ascending=False
+        )
+
+        repeat["status"] = repeat["total_pelanggaran"].apply(
+            lambda x: "🚨 PRIORITAS" if x >= 3 else "Normal"
+        )
+
+        st.dataframe(repeat, use_container_width=True)
+
+    st.divider()
+    st.title("🧾 Riwayat Pelanggaran (Valid)")
+
+    if raw_data:
+        df = pd.DataFrame(raw_data)
+        df = df[df["plate_number"] != "TIDAK TERBACA"]
+        st.dataframe(df, use_container_width=True)
+
 # import streamlit as st
 # import pandas as pd
 # import os
@@ -10,22 +188,25 @@
 #     layout="wide"
 # )
 
+# # Sidebar Menu
 # st.sidebar.title("🚦 Menu")
 # menu = st.sidebar.radio(
 #     "Pilih Fitur",
-#     ["Deteksi Video", "Dashboard", "Repeat Offender", "Riwayat Data"]
+#     ["Deteksi Video", "Vehicle Frequency", "Repeat Offender dan Riwayat Data"]
 # )
+
+# @st.cache_data(ttl=60)
+# def fetch_data():
+#     return get_all_detections()
+
+# raw_data = fetch_data()
 
 # # ===============================
 # # MODE 1 — DETEKSI VIDEO
 # # ===============================
 # if menu == "Deteksi Video":
 #     st.title("🚦 Deteksi Pelanggaran Lalu Lintas")
-
-#     uploaded_file = st.file_uploader(
-#         "Upload Video",
-#         type=["mp4", "avi", "mov"]
-#     )
+#     uploaded_file = st.file_uploader("Upload Video", type=["mp4", "avi", "mov"])
 
 #     if uploaded_file:
 #         temp_path = "temp_video.mp4"
@@ -35,235 +216,115 @@
 #         if st.button("▶️ Jalankan Deteksi"):
 #             with st.spinner("Memproses video..."):
 #                 results = run_detection(temp_path)
-
+            
 #             st.success(f"Selesai! Total deteksi: {len(results)}")
 
-#             cols = st.columns(3)  # grid 3 kolom
-#             for idx, res in enumerate(results):
-#                 img_path = res["image_path"]
+#             # PEMISAHAN DATA
+#             terbaca = [r for r in results if r.get('plate_number') != "TIDAK TERBACA"]
+#             tidak_terbaca = [r for r in results if r.get('plate_number') == "TIDAK TERBACA"]
 
-#                 if os.path.exists(img_path):
-#                     img = Image.open(img_path)
-#                     with cols[idx % 3]:
-#                         st.image(img, caption="Frame", use_column_width=True)
+#             tab1, tab2 = st.tabs([f"✅ Terbaca ({len(terbaca)})", f"❌ Tidak Terbaca ({len(tidak_terbaca)})"])
 
+#             # --- TAB 1: TERBACA ---
+#             with tab1:
+#                 if not terbaca:
+#                     st.info("Tidak ada plat yang terbaca jelas (Min. 6 Karakter).")
+#                 else:
+#                     cols = st.columns(3)
+#                     for idx, res in enumerate(terbaca):
+#                         with cols[idx % 3]:
+#                             st.write(f"**Frame: {res.get('frame_id', 0)}**")
+                            
+#                             # Cek Path Gambar
+#                             img_path = res.get("image_path")
+#                             if img_path and os.path.exists(img_path):
+#                                 try:
+#                                     img_file = Image.open(img_path)
+#                                     st.image(img_file, use_column_width=True)
+#                                 except Exception as e:
+#                                     st.error(f"Gagal memuat gambar: {e}")
+#                             else:
+#                                 st.warning("🖼️ Gambar tidak ditemukan")
+
+#                             # Styling Plat Kartu Hijau
+#                             st.markdown(f"""
+#                                 <div style="background-color: #1e3d2f; padding: 15px; border-radius: 0px 0px 10px 10px; border-left: 5px solid #4caf50; margin-top: -15px;">
+#                                     <h4 style="color: white; margin: 0; font-size: 16px;">Plat: <span style="font-family: monospace; letter-spacing: 2px;">{res.get('plate_number')}</span></h4>
+#                                 </div>
+#                                 <br>
+#                             """, unsafe_allow_html=True)
+
+#             # --- TAB 2: TIDAK TERBACA ---
+#             with tab2:
+#                 if not tidak_terbaca:
+#                     st.info("Semua plat terbaca.")
+#                 else:
+#                     cols = st.columns(3)
+#                     for idx, res in enumerate(tidak_terbaca):
+#                         with cols[idx % 3]:
+#                             st.write(f"**Frame: {res.get('frame_id', 0)}**")
+                            
+#                             img_path = res.get("image_path")
+#                             if img_path and os.path.exists(img_path):
+#                                 try:
+#                                     img_file = Image.open(img_path)
+#                                     st.image(img_file, use_column_width=True)
+#                                 except Exception as e:
+#                                     st.error(f"Gagal memuat gambar: {e}")
+#                             else:
+#                                 st.warning("🖼️ Gambar tidak ditemukan")
+
+#                             # Styling Plat Kartu Merah
+#                             st.markdown(f"""
+#                                 <div style="background-color: #3d1e1e; padding: 15px; border-radius: 0px 0px 10px 10px; border-left: 5px solid #f44336; margin-top: -15px;">
+#                                     <h4 style="color: white; margin: 0; font-size: 16px;">❌ TIDAK TERBACA</h4>
+#                                 </div>
+#                                 <br>
+#                             """, unsafe_allow_html=True)
 
 # # ===============================
-# # MODE 2 — DASHBOARD
+# # MODE 2 — VEHICLE FREQUENCY
 # # ===============================
-# elif menu == "Dashboard":
-#     st.title("📊 Dashboard Pelanggaran")
+# elif menu == "Vehicle Frequency":
+#     st.title("📊 Vehicle Frequency & Encounter Log")
+#     if not raw_data:
+#         st.warning("Belum ada data.")
+#     else:
+#         df = pd.DataFrame(raw_data)
+#         df = df[df["plate_number"] != "TIDAK TERBACA"]
 
-#     data = get_all_detections()
-#     if not data:
-#         st.warning("Belum ada data pelanggaran")
-#         st.stop()
+#         freq_df = df.groupby('plate_number').agg({
+#             'video_source': 'nunique',
+#             'timestamp': ['count', 'max']
+#         }).reset_index()
 
-#     df = pd.DataFrame(data)
+#         freq_df.columns = ['Plat Nomor', 'Lokasi Berbeda', 'Total Muncul', 'Terakhir Terlihat']
 
-#     col1, col2, col3, col4 = st.columns(4)
-#     col1.metric("Total Pelanggaran", len(df))
-#     col2.metric("Video Unik", df["video_source"].nunique())
-#     col3.metric("Plat Unik", df["plate_number"].nunique())
-#     col4.metric("Bukti Kuat (≥80)", len(df[df["evidence_score"] >= 80]))
-
-#     st.subheader("📈 Pelanggaran per Video")
-#     st.bar_chart(df["video_source"].value_counts())
+#         st.subheader("🔝 Top 10 Kendaraan")
+#         st.bar_chart(freq_df.set_index('Plat Nomor')['Total Muncul'].head(10))
+#         st.dataframe(freq_df, use_container_width=True)
 
 # # ===============================
 # # MODE 3 — REPEAT OFFENDER
 # # ===============================
-# elif menu == "Repeat Offender":
+# elif menu == "Repeat Offender dan Riwayat Data":
 #     st.title("🚨 Pelanggar Berulang")
+#     if raw_data:
+#         df = pd.DataFrame(raw_data)
+#         df = df[df["plate_number"] != "TIDAK TERBACA"]
+#         repeat = df.groupby("plate_number").size().reset_index(name="total_pelanggaran")
+#         repeat = repeat.sort_values("total_pelanggaran", ascending=False)
 
-#     df = pd.DataFrame(get_all_detections())
+#         repeat["status"] = repeat["total_pelanggaran"].apply(
+#             lambda x: "🚨 PRIORITAS" if x >= 3 else "Normal"
+#         )
 
-#     repeat = (
-#         df.groupby("plate_number")
-#         .size()
-#         .reset_index(name="total_pelanggaran")
-#         .sort_values("total_pelanggaran", ascending=False)
-#     )
+#         st.dataframe(repeat, use_container_width=True)
 
-#     repeat["status"] = repeat["total_pelanggaran"].apply(
-#         lambda x: "🚨 PRIORITAS" if x >= 3 else "Normal"
-#     )
+#     st.divider()
+#     st.title("🧾 Riwayat Semua Pelanggaran")
+#     if raw_data:
+#         df = pd.DataFrame(raw_data)
+#         df = df[df["plate_number"] != "TIDAK TERBACA"]
 
-#     st.dataframe(repeat, use_container_width=True)
-
-# # ===============================
-# # MODE 4 — RIWAYAT DATA
-# # ===============================
-# elif menu == "Riwayat Data":
-#     st.title("🧾 Riwayat Pelanggaran")
-
-#     df = pd.DataFrame(get_all_detections())
-
-#     video_filter = st.selectbox(
-#         "Filter Video",
-#         ["Semua"] + list(df["video_source"].unique())
-#     )
-
-#     if video_filter != "Semua":
-#         df = df[df["video_source"] == video_filter]
-
-#     plate_search = st.text_input("Cari Plat Nomor")
-#     if plate_search:
-#         df = df[df["plate_number"].str.contains(
-#             plate_search, case=False, na=False
-#         )]
-
-#     st.dataframe(df, use_container_width=True)
-
-import streamlit as st
-import pandas as pd
-import os
-from PIL import Image
-from detect import run_detection
-from firebase import get_all_detections
-
-st.set_page_config(
-    page_title="Sistem Deteksi Pelanggaran",
-    layout="wide"
-)
-
-# Sidebar Menu
-st.sidebar.title("🚦 Menu")
-menu = st.sidebar.radio(
-    "Pilih Fitur",
-    ["Deteksi Video", "Vehicle Frequency", "Repeat Offender dan Riwayat Data"]
-)
-
-@st.cache_data(ttl=60)
-def fetch_data():
-    return get_all_detections()
-
-raw_data = fetch_data()
-
-# ===============================
-# MODE 1 — DETEKSI VIDEO
-# ===============================
-if menu == "Deteksi Video":
-    st.title("🚦 Deteksi Pelanggaran Lalu Lintas")
-    uploaded_file = st.file_uploader("Upload Video", type=["mp4", "avi", "mov"])
-
-    if uploaded_file:
-        temp_path = "temp_video.mp4"
-        with open(temp_path, "wb") as f:
-            f.write(uploaded_file.read())
-
-        if st.button("▶️ Jalankan Deteksi"):
-            with st.spinner("Memproses video..."):
-                results = run_detection(temp_path)
-            
-            st.success(f"Selesai! Total deteksi: {len(results)}")
-
-            # PEMISAHAN DATA
-            terbaca = [r for r in results if r.get('plate_number') != "TIDAK TERBACA"]
-            tidak_terbaca = [r for r in results if r.get('plate_number') == "TIDAK TERBACA"]
-
-            tab1, tab2 = st.tabs([f"✅ Terbaca ({len(terbaca)})", f"❌ Tidak Terbaca ({len(tidak_terbaca)})"])
-
-            # --- TAB 1: TERBACA ---
-            with tab1:
-                if not terbaca:
-                    st.info("Tidak ada plat yang terbaca jelas (Min. 6 Karakter).")
-                else:
-                    cols = st.columns(3)
-                    for idx, res in enumerate(terbaca):
-                        with cols[idx % 3]:
-                            st.write(f"**Frame: {res.get('frame_id', 0)}**")
-                            
-                            # Cek Path Gambar
-                            img_path = res.get("image_path")
-                            if img_path and os.path.exists(img_path):
-                                try:
-                                    img_file = Image.open(img_path)
-                                    st.image(img_file, use_column_width=True)
-                                except Exception as e:
-                                    st.error(f"Gagal memuat gambar: {e}")
-                            else:
-                                st.warning("🖼️ Gambar tidak ditemukan")
-
-                            # Styling Plat Kartu Hijau
-                            st.markdown(f"""
-                                <div style="background-color: #1e3d2f; padding: 15px; border-radius: 0px 0px 10px 10px; border-left: 5px solid #4caf50; margin-top: -15px;">
-                                    <h4 style="color: white; margin: 0; font-size: 16px;">Plat: <span style="font-family: monospace; letter-spacing: 2px;">{res.get('plate_number')}</span></h4>
-                                </div>
-                                <br>
-                            """, unsafe_allow_html=True)
-
-            # --- TAB 2: TIDAK TERBACA ---
-            with tab2:
-                if not tidak_terbaca:
-                    st.info("Semua plat terbaca.")
-                else:
-                    cols = st.columns(3)
-                    for idx, res in enumerate(tidak_terbaca):
-                        with cols[idx % 3]:
-                            st.write(f"**Frame: {res.get('frame_id', 0)}**")
-                            
-                            img_path = res.get("image_path")
-                            if img_path and os.path.exists(img_path):
-                                try:
-                                    img_file = Image.open(img_path)
-                                    st.image(img_file, use_column_width=True)
-                                except Exception as e:
-                                    st.error(f"Gagal memuat gambar: {e}")
-                            else:
-                                st.warning("🖼️ Gambar tidak ditemukan")
-
-                            # Styling Plat Kartu Merah
-                            st.markdown(f"""
-                                <div style="background-color: #3d1e1e; padding: 15px; border-radius: 0px 0px 10px 10px; border-left: 5px solid #f44336; margin-top: -15px;">
-                                    <h4 style="color: white; margin: 0; font-size: 16px;">❌ TIDAK TERBACA</h4>
-                                </div>
-                                <br>
-                            """, unsafe_allow_html=True)
-
-# ===============================
-# MODE 2 — VEHICLE FREQUENCY
-# ===============================
-elif menu == "Vehicle Frequency":
-    st.title("📊 Vehicle Frequency & Encounter Log")
-    if not raw_data:
-        st.warning("Belum ada data.")
-    else:
-        df = pd.DataFrame(raw_data)
-        df = df[df["plate_number"] != "TIDAK TERBACA"]
-
-        freq_df = df.groupby('plate_number').agg({
-            'video_source': 'nunique',
-            'timestamp': ['count', 'max']
-        }).reset_index()
-
-        freq_df.columns = ['Plat Nomor', 'Lokasi Berbeda', 'Total Muncul', 'Terakhir Terlihat']
-
-        st.subheader("🔝 Top 10 Kendaraan")
-        st.bar_chart(freq_df.set_index('Plat Nomor')['Total Muncul'].head(10))
-        st.dataframe(freq_df, use_container_width=True)
-
-# ===============================
-# MODE 3 — REPEAT OFFENDER
-# ===============================
-elif menu == "Repeat Offender dan Riwayat Data":
-    st.title("🚨 Pelanggar Berulang")
-    if raw_data:
-        df = pd.DataFrame(raw_data)
-        df = df[df["plate_number"] != "TIDAK TERBACA"]
-        repeat = df.groupby("plate_number").size().reset_index(name="total_pelanggaran")
-        repeat = repeat.sort_values("total_pelanggaran", ascending=False)
-
-        repeat["status"] = repeat["total_pelanggaran"].apply(
-            lambda x: "🚨 PRIORITAS" if x >= 3 else "Normal"
-        )
-
-        st.dataframe(repeat, use_container_width=True)
-
-    st.divider()
-    st.title("🧾 Riwayat Semua Pelanggaran")
-    if raw_data:
-        df = pd.DataFrame(raw_data)
-        df = df[df["plate_number"] != "TIDAK TERBACA"]
-
-        st.dataframe(df, use_container_width=True)
+#         st.dataframe(df, use_container_width=True)
