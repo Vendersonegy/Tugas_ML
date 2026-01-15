@@ -8,43 +8,53 @@ KEY_PATH = os.path.join(BASE_DIR, "firebase-key.json")
 
 def initialize_firebase():
     if not firebase_admin._apps:
+        # Cek Secrets (Cloud)
         if "firebase" in st.secrets:
             try:
                 secret_dict = dict(st.secrets["firebase"])
                 if "private_key" in secret_dict:
-                    # Menghapus spasi dan memperbaiki karakter newline yang rusak
                     pk = secret_dict["private_key"].strip().replace("\\n", "\n")
                     secret_dict["private_key"] = pk
-                
                 cred = credentials.Certificate(secret_dict)
                 firebase_admin.initialize_app(cred)
                 return firestore.client()
             except Exception as e:
-                st.sidebar.error(f"⚠️ Secrets Error: {e}")
+                # Log ke console, jangan gunakan st.error di sini agar tidak memicu APIException
+                print(f"Firebase Secrets Error: {e}")
 
-        # 2. Cek File Lokal
-        if os.path.exists(KEY_PATH):
+        # Cek File (Lokal)
+        elif os.path.exists(KEY_PATH):
             try:
                 cred = credentials.Certificate(KEY_PATH)
                 firebase_admin.initialize_app(cred)
                 return firestore.client()
             except Exception as e:
-                st.sidebar.error(f"⚠️ File Error: {e}")
+                print(f"Firebase File Error: {e}")
         
         return None
     return firestore.client()
 
+# Global variable
 db = initialize_firebase()
 
 def get_all_detections():
     global db
+    # Pastikan db diinisialisasi ulang jika None
     if db is None:
-        db = initialize_firebase() # Proteksi AttributeError
-        if db is None: return []
+        db = initialize_firebase()
+    
+    # Proteksi: Jika db tetap None, jangan panggil .collection()
+    if db is None:
+        return []
+
     try:
         docs = db.collection("pelanggaran").order_by("timestamp", direction=firestore.Query.DESCENDING).stream()
-        return [doc.to_dict() for doc in docs]
-    except:
+        results = []
+        for doc in docs:
+            results.append(doc.to_dict())
+        return results
+    except Exception as e:
+        print(f"Error Firestore: {e}")
         return []
 
 def save_detection_result(data):
