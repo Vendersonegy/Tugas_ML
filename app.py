@@ -1,10 +1,10 @@
-import streamlit as st
-
 # LANGKAH 1: WAJIB PALING ATAS
 st.set_page_config(
     page_title="Sistem Deteksi Pelanggaran",
     layout="wide"
 )
+import streamlit as st
+
 
 # LANGKAH 2: Import Library Standar
 import pandas as pd
