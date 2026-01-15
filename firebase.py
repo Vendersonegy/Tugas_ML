@@ -30,7 +30,6 @@ def initialize_firebase():
             except Exception as e:
                 print(f"Firebase File Error: {e}")
         
-        return None
     return firestore.client()
 
 # Variabel db global

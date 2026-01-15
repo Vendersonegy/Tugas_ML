@@ -96,25 +96,31 @@ elif menu == "Vehicle Frequency":
 elif menu == "Repeat Offender & Riwayat":
     st.title("🚨 Repeat Offender")
 
-    if raw_data:
+    if not raw_data:
+        st.warning("Belum ada data di database.")
+    else:
         df = pd.DataFrame(raw_data)
-        df = df[df["plate_number"] != "TIDAK TERBACA"]
-        repeat = df.groupby("plate_number").size().reset_index(name="total_pelanggaran")
-        repeat = repeat.sort_values("total_pelanggaran", ascending=False)
+        # Filter agar "TIDAK TERBACA" tidak masuk hitungan residivis
+        df_filtered = df[df["plate_number"] != "TIDAK TERBACA"].copy()
+        
+        if df_filtered.empty:
+            st.info("Belum ada data plat nomor yang terbaca.")
+        else:
+            # Hitung frekuensi
+            repeat = df_filtered.groupby("plate_number").size().reset_index(name="total_pelanggaran")
+            repeat = repeat.sort_values("total_pelanggaran", ascending=False)
 
-        repeat["status"] = repeat["total_pelanggaran"].apply(
-            lambda x: "🚨 PRIORITAS" if x >= 3 else "Normal"
-        )
+            # Tambah status
+            repeat["status"] = repeat["total_pelanggaran"].apply(
+                lambda x: "🚨 PRIORITAS" if x >= 3 else "Normal"
+            )
 
-        st.dataframe(repeat, use_container_width=True)
+            st.dataframe(repeat, use_container_width=True)
 
-    st.divider()
-    st.title("🧾 Riwayat Semua Pelanggaran")
-    if raw_data:
-        df = pd.DataFrame(raw_data)
-        df = df[df["plate_number"] != "TIDAK TERBACA"]
-
-        st.dataframe(df, use_container_width=True)
+            st.divider()
+            st.title("🧾 Riwayat Semua Pelanggaran")
+            # Menampilkan riwayat (bisa tampilkan df asli atau df_filtered)
+            st.dataframe(df, use_container_width=True)
 
 
 # import streamlit as st
