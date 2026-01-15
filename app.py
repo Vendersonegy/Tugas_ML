@@ -59,7 +59,7 @@ if menu == "Deteksi Video":
                         with cols[idx % 3]:
                             img_path = res.get("relative_path") # Menggunakan path relatif
                             if img_path and os.path.exists(img_path):
-                                st.image(Image.open(img_path), use_container_length=True)
+                                st.image(Image.open(img_path), use_column_width=True)
                             st.write(f"**Plat: {res.get('plate_number')}**")
 
             with tab2:
@@ -71,7 +71,7 @@ if menu == "Deteksi Video":
                         with cols[idx % 3]:
                             img_path = res.get("relative_path")
                             if img_path and os.path.exists(img_path):
-                                st.image(Image.open(img_path), use_container_length=True)
+                                st.image(Image.open(img_path), use_column_width=True)
                             st.write("❌ TIDAK TERBACA")
 
 # ===============================
