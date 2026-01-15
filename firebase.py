@@ -1,92 +1,51 @@
 import firebase_admin
 from firebase_admin import credentials, firestore
-import os
 import streamlit as st
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-KEY_PATH = os.path.join(BASE_DIR, "firebase-key.json")
+_db = None
 
-def initialize_firebase():
-    if not firebase_admin._apps:
-        # Cek Secrets (Cloud)
-        if "firebase" in st.secrets:
-            try:
-                secret_dict = dict(st.secrets["firebase"])
-                if "private_key" in secret_dict:
-                    pk = secret_dict["private_key"].strip().replace("\\n", "\n")
-                    secret_dict["private_key"] = pk
-                cred = credentials.Certificate(secret_dict)
-                firebase_admin.initialize_app(cred)
-                return firestore.client()
-            except Exception as e:
-                print(f"Firebase Secrets Error: {e}")
+def init_firebase():
+    global _db
 
-        # Cek File (Lokal)
-        elif os.path.exists(KEY_PATH):
-            try:
-                cred = credentials.Certificate(KEY_PATH)
-                firebase_admin.initialize_app(cred)
-                return firestore.client()
-            except Exception as e:
-                print(f"Firebase File Error: {e}")
-        
+    if firebase_admin._apps:
+        _db = firestore.client()
+        return _db
+
+    try:
+        cred = credentials.Certificate(dict(st.secrets["firebase"]))
+        firebase_admin.initialize_app(cred)
+        _db = firestore.client()
+        return _db
+    except Exception as e:
+        print("Firebase init failed:", e)
         return None
-    return firestore.client()
 
-# Variabel db global
-db = initialize_firebase()
 
 def get_all_detections():
-    global db
-    if db is None:
-        db = initialize_firebase()
-    
-    # Jika db masih None, jangan panggil collection agar tidak AttributeError
-    if db is None:
+    global _db
+    if _db is None:
+        _db = init_firebase()
+    if _db is None:
         return []
 
-    try:
-        docs = db.collection("pelanggaran").order_by("timestamp", direction=firestore.Query.DESCENDING).stream()
-        return [doc.to_dict() for doc in docs]
-    except Exception as e:
-        print(f"Error fetching data: {e}")
-        return []
+    docs = (
+        _db.collection("pelanggaran")
+        .order_by("timestamp", direction=firestore.Query.DESCENDING)
+        .stream()
+    )
+    return [doc.to_dict() for doc in docs]
+
 
 def save_detection_result(data):
-    global db
-    if db is None:
-        db = initialize_firebase()
-        if db is None: return False
-    try:
-        db.collection("pelanggaran").add(data)
-        return True
-    except Exception as e:
-        print(f"Error saving data: {e}")
+    global _db
+    if _db is None:
+        _db = init_firebase()
+    if _db is None:
         return False
 
-def get_all_detections():
-    """Ambil data dari Firestore dengan proteksi NoneType"""
-    global db
-    if db is None:
-        db = initialize_firebase()
-        if db is None: return []
-    try:
-        docs = db.collection("pelanggaran").order_by("timestamp", direction=firestore.Query.DESCENDING).stream()
-        return [doc.to_dict() for doc in docs]
-    except Exception as e:
-        print(f"Error fetch: {e}")
-        return []
+    _db.collection("pelanggaran").add(data)
+    return True
 
-def save_detection_result(data):
-    global db
-    if db is None:
-        db = initialize_firebase()
-        if db is None: return False
-    try:
-        db.collection("pelanggaran").add(data)
-        return True
-    except:
-        return False
     
 
 # import firebase_admin

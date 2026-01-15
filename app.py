@@ -3,14 +3,18 @@ import pandas as pd
 import os
 from PIL import Image
 from firebase import get_all_detections
-from detect import run_detection
 
+# ===============================
+# PAGE CONFIG (HARUS PALING ATAS)
+# ===============================
 st.set_page_config(
     page_title="Sistem Deteksi Pelanggaran",
     layout="wide"
 )
 
-# Sidebar Menu
+IS_CLOUD = "STREAMLIT_RUNTIME" in os.environ
+
+# Sidebar
 st.sidebar.title("🚦 Menu")
 menu = st.sidebar.radio(
     "Pilih Fitur",
@@ -19,23 +23,23 @@ menu = st.sidebar.radio(
 
 @st.cache_data(ttl=60)
 def fetch_data():
-    try:
-        data = get_all_detections()
-        return data if data is not None else []
-    except:
-        return []
+    return get_all_detections()
 
 raw_data = fetch_data()
 
-# Tampilkan peringatan jika database tidak terhubung
-if not raw_data and menu != "Deteksi Video":
-    st.sidebar.warning("⚠️ Database tidak terhubung atau data kosong.")
-
 # ===============================
-# MODE 1 — DETEKSI VIDEO
+# MODE 1 — DETEKSI VIDEO (LOCAL ONLY)
 # ===============================
 if menu == "Deteksi Video":
     st.title("🚦 Deteksi Pelanggaran Lalu Lintas")
+
+    if IS_CLOUD:
+        st.warning("⚠️ Fitur deteksi video dinonaktifkan di Streamlit Cloud")
+        st.stop()
+
+    # ⬇️ IMPORT DI DALAM BLOK (AMAN)
+    from detect import run_detection
+
     uploaded_file = st.file_uploader("Upload Video", type=["mp4", "avi", "mov"])
 
     if uploaded_file:
@@ -46,75 +50,30 @@ if menu == "Deteksi Video":
         if st.button("▶️ Jalankan Deteksi"):
             with st.spinner("Memproses video..."):
                 results = run_detection(temp_path)
-            
+
             st.success(f"Selesai! Total deteksi: {len(results)}")
-
-            # PEMISAHAN DATA
-            terbaca = [r for r in results if r.get('plate_number') != "TIDAK TERBACA"]
-            tidak_terbaca = [r for r in results if r.get('plate_number') == "TIDAK TERBACA"]
-
-            tab1, tab2 = st.tabs([f"✅ Terbaca ({len(terbaca)})", f"❌ Tidak Terbaca ({len(tidak_terbaca)})"])
-
-            with tab1:
-                if not terbaca:
-                    st.info("Tidak ada plat yang terbaca jelas.")
-                else:
-                    cols = st.columns(3)
-                    for idx, res in enumerate(terbaca):
-                        with cols[idx % 3]:
-                            img_path = res.get("relative_path") # Menggunakan path relatif
-                            if img_path and os.path.exists(img_path):
-                                st.image(Image.open(img_path), use_container_width=True)
-                            st.write(f"**Plat: {res.get('plate_number')}**")
-
-            with tab2:
-                if not tidak_terbaca:
-                    st.info("Semua plat terbaca.")
-                else:
-                    cols = st.columns(3)
-                    for idx, res in enumerate(tidak_terbaca):
-                        with cols[idx % 3]:
-                            img_path = res.get("relative_path")
-                            if img_path and os.path.exists(img_path):
-                                st.image(Image.open(img_path), use_container_width=True)
-                            st.write("❌ TIDAK TERBACA")
 
 # ===============================
 # MODE 2 — VEHICLE FREQUENCY
 # ===============================
 elif menu == "Vehicle Frequency":
     st.title("📊 Vehicle Frequency")
-
-    if not raw_data:
-        st.warning("Belum ada data.")
-    else:
-        df = pd.DataFrame(raw_data)
-        df = df[df["plate_number"] != "TIDAK TERBACA"]
-
-        freq = df.groupby("plate_number").size().reset_index(name="Total Muncul")
-        st.bar_chart(freq.set_index("plate_number").head(10))
-        st.dataframe(freq, use_container_width=True)
-
-# ===============================
-# MODE 3 — REPEAT OFFENDER & RIWAYAT
-# ===============================
-elif menu == "Repeat Offender & Riwayat":
-    st.title("🚨 Repeat Offender")
-
     if raw_data:
         df = pd.DataFrame(raw_data)
         df = df[df["plate_number"] != "TIDAK TERBACA"]
+        freq = df.groupby("plate_number").size().reset_index(name="Total")
+        st.bar_chart(freq.set_index("plate_number"))
 
-        repeat = df.groupby("plate_number").size().reset_index(name="Total Pelanggaran")
-        repeat["Status"] = repeat["Total Pelanggaran"].apply(
-            lambda x: "🚨 PRIORITAS" if x >= 3 else "Normal"
-        )
+# ===============================
+# MODE 3 — REPEAT OFFENDER
+# ===============================
+elif menu == "Repeat Offender dan Riwayat Data":
+    st.title("🚨 Repeat Offender")
+    if raw_data:
+        df = pd.DataFrame(raw_data)
+        df = df[df["plate_number"] != "TIDAK TERBACA"]
+        st.dataframe(df)
 
-        st.dataframe(repeat, use_container_width=True)
-
-    st.divider()
-    st.subheader("🧾 Riwayat Pelanggaran Valid")
-    st.dataframe(df, use_container_width=True)
 
 
 # import streamlit as st
