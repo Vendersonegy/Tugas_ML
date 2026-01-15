@@ -2,9 +2,10 @@ import os
 import streamlit as st
 import pandas as pd
 from PIL import Image
+from firebase import get_all_detections
 
 # ===============================
-# ENV DETECTION
+# DETEKSI ENVIRONMENT
 # ===============================
 IS_CLOUD = "STREAMLIT_RUNTIME" in os.environ
 
@@ -15,14 +16,6 @@ st.set_page_config(
     page_title="Sistem Deteksi Pelanggaran",
     layout="wide"
 )
-
-# ===============================
-# SAFE IMPORT (TANPA CV2 DI CLOUD)
-# ===============================
-if not IS_CLOUD:
-    from detect import run_detection
-
-from firebase import get_all_detections
 
 # ===============================
 # SIDEBAR
@@ -54,10 +47,13 @@ if menu == "Deteksi Video":
 
     if IS_CLOUD:
         st.warning(
-            "⚠️ Fitur deteksi video hanya tersedia di **local environment**.\n\n"
-            "Versi cloud digunakan untuk **dashboard & analisis data**."
+            "⚠️ Fitur deteksi video **dinonaktifkan di Cloud**.\n\n"
+            "Silakan jalankan aplikasi ini secara **local** untuk melakukan deteksi."
         )
         st.stop()
+
+    # ⬇️ IMPORT DETECT DI DALAM BLOK (AMAN)
+    from detect import run_detection
 
     uploaded_file = st.file_uploader(
         "Upload Video",
@@ -83,31 +79,17 @@ if menu == "Deteksi Video":
                 f"❌ Tidak Terbaca ({len(tidak_terbaca)})"
             ])
 
-            # ----- TAB TERBACA -----
             with tab1:
-                if not terbaca:
-                    st.info("Tidak ada plat yang terbaca.")
-                else:
-                    cols = st.columns(3)
-                    for i, r in enumerate(terbaca):
-                        with cols[i % 3]:
-                            st.write(f"Frame: {r['frame_id']}")
-                            if os.path.exists(r["image_path"]):
-                                st.image(Image.open(r["image_path"]), use_column_width=True)
-                            st.success(f"Plat: {r['plate_number']}")
+                for r in terbaca:
+                    if os.path.exists(r["image_path"]):
+                        st.image(Image.open(r["image_path"]), width=300)
+                    st.success(f"Plat: {r['plate_number']}")
 
-            # ----- TAB TIDAK TERBACA -----
             with tab2:
-                if not tidak_terbaca:
-                    st.info("Semua plat terbaca.")
-                else:
-                    cols = st.columns(3)
-                    for i, r in enumerate(tidak_terbaca):
-                        with cols[i % 3]:
-                            st.write(f"Frame: {r['frame_id']}")
-                            if os.path.exists(r["image_path"]):
-                                st.image(Image.open(r["image_path"]), use_column_width=True)
-                            st.error("TIDAK TERBACA")
+                for r in tidak_terbaca:
+                    if os.path.exists(r["image_path"]):
+                        st.image(Image.open(r["image_path"]), width=300)
+                    st.error("TIDAK TERBACA")
 
 # ===============================
 # MODE 2 — VEHICLE FREQUENCY
@@ -119,27 +101,10 @@ elif menu == "Vehicle Frequency":
         st.warning("Belum ada data.")
     else:
         df = pd.DataFrame(raw_data)
-
-        # ❌ EXCLUDE TIDAK TERBACA
         df = df[df["plate_number"] != "TIDAK TERBACA"]
 
-        freq = df.groupby("plate_number").agg({
-            "video_source": "nunique",
-            "timestamp": ["count", "max"]
-        }).reset_index()
-
-        freq.columns = [
-            "Plat Nomor",
-            "Lokasi Berbeda",
-            "Total Muncul",
-            "Terakhir Terlihat"
-        ]
-
-        st.subheader("🔝 Top 10 Kendaraan")
-        st.bar_chart(
-            freq.set_index("Plat Nomor")["Total Muncul"].head(10)
-        )
-
+        freq = df.groupby("plate_number").size().reset_index(name="Total Muncul")
+        st.bar_chart(freq.set_index("plate_number").head(10))
         st.dataframe(freq, use_container_width=True)
 
 # ===============================
@@ -150,31 +115,19 @@ elif menu == "Repeat Offender & Riwayat":
 
     if raw_data:
         df = pd.DataFrame(raw_data)
-
-        # ❌ EXCLUDE TIDAK TERBACA
         df = df[df["plate_number"] != "TIDAK TERBACA"]
 
-        repeat = df.groupby("plate_number").size().reset_index(
-            name="total_pelanggaran"
-        )
-
-        repeat = repeat.sort_values(
-            "total_pelanggaran", ascending=False
-        )
-
-        repeat["status"] = repeat["total_pelanggaran"].apply(
+        repeat = df.groupby("plate_number").size().reset_index(name="Total Pelanggaran")
+        repeat["Status"] = repeat["Total Pelanggaran"].apply(
             lambda x: "🚨 PRIORITAS" if x >= 3 else "Normal"
         )
 
         st.dataframe(repeat, use_container_width=True)
 
     st.divider()
-    st.title("🧾 Riwayat Pelanggaran (Valid)")
+    st.subheader("🧾 Riwayat Pelanggaran Valid")
+    st.dataframe(df, use_container_width=True)
 
-    if raw_data:
-        df = pd.DataFrame(raw_data)
-        df = df[df["plate_number"] != "TIDAK TERBACA"]
-        st.dataframe(df, use_container_width=True)
 
 # import streamlit as st
 # import pandas as pd
