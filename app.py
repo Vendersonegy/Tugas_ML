@@ -1,19 +1,14 @@
-# LANGKAH 1: WAJIB PALING ATAS
+import streamlit as st
+import pandas as pd
+import os
+from PIL import Image
+from firebase import get_all_detections
+from detect import run_detection
+
 st.set_page_config(
     page_title="Sistem Deteksi Pelanggaran",
     layout="wide"
 )
-import streamlit as st
-
-
-# LANGKAH 2: Import Library Standar
-import pandas as pd
-import os
-from PIL import Image
-
-# LANGKAH 3: Import File Lokal (Pindahkan ke sini)
-from firebase import get_all_detections
-from detect import run_detection
 
 # Sidebar Menu
 st.sidebar.title("🚦 Menu")
