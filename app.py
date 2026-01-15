@@ -99,17 +99,22 @@ elif menu == "Repeat Offender & Riwayat":
     if raw_data:
         df = pd.DataFrame(raw_data)
         df = df[df["plate_number"] != "TIDAK TERBACA"]
+        repeat = df.groupby("plate_number").size().reset_index(name="total_pelanggaran")
+        repeat = repeat.sort_values("total_pelanggaran", ascending=False)
 
-        repeat = df.groupby("plate_number").size().reset_index(name="Total Pelanggaran")
-        repeat["Status"] = repeat["Total Pelanggaran"].apply(
+        repeat["status"] = repeat["total_pelanggaran"].apply(
             lambda x: "🚨 PRIORITAS" if x >= 3 else "Normal"
         )
 
         st.dataframe(repeat, use_container_width=True)
 
     st.divider()
-    st.subheader("🧾 Riwayat Pelanggaran Valid")
-    st.dataframe(df, use_container_width=True)
+    st.title("🧾 Riwayat Semua Pelanggaran")
+    if raw_data:
+        df = pd.DataFrame(raw_data)
+        df = df[df["plate_number"] != "TIDAK TERBACA"]
+
+        st.dataframe(df, use_container_width=True)
 
 
 # import streamlit as st
