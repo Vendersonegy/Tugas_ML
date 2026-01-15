@@ -3,48 +3,56 @@ from firebase_admin import credentials, firestore
 import os
 import streamlit as st
 
-# Path untuk penggunaan lokal
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 KEY_PATH = os.path.join(BASE_DIR, "firebase-key.json")
 
 def initialize_firebase():
-    """Inisialisasi Firebase: Cek Secrets dulu (Cloud), lalu File (Lokal)"""
     if not firebase_admin._apps:
-        # 1. Coba baca dari Streamlit Secrets (Cloud)
+        # Cek Secrets (Cloud)
         if "firebase" in st.secrets:
             try:
                 secret_dict = dict(st.secrets["firebase"])
-                # Bersihkan karakter newline yang sering rusak di kunci RSA
                 if "private_key" in secret_dict:
-                    secret_dict["private_key"] = secret_dict["private_key"].strip().replace("\\n", "\n")
-                
+                    pk = secret_dict["private_key"].strip().replace("\\n", "\n")
+                    secret_dict["private_key"] = pk
                 cred = credentials.Certificate(secret_dict)
                 firebase_admin.initialize_app(cred)
                 return firestore.client()
             except Exception as e:
-                # Jangan print langsung, gunakan st.error agar terlihat di UI
-                st.error(f"Gagal inisialisasi Firebase dari Secrets: {e}")
+                print(f"Firebase Secrets Error: {e}")
 
-        # 2. Coba baca dari File Lokal (Lokal)
-        if os.path.exists(KEY_PATH):
+        # Cek File (Lokal)
+        elif os.path.exists(KEY_PATH):
             try:
                 cred = credentials.Certificate(KEY_PATH)
                 firebase_admin.initialize_app(cred)
                 return firestore.client()
             except Exception as e:
-                st.error(f"Gagal inisialisasi Firebase dari File Lokal: {e}")
+                print(f"Firebase File Error: {e}")
         
-        # Jika semua metode gagal
         return None
-    
-    # Jika aplikasi sudah terinisialisasi sebelumnya
     return firestore.client()
 
-# Variabel database global
+# Variabel db global
 db = initialize_firebase()
 
+def get_all_detections():
+    global db
+    if db is None:
+        db = initialize_firebase()
+    
+    # Jika db masih None, jangan panggil collection agar tidak AttributeError
+    if db is None:
+        return []
+
+    try:
+        docs = db.collection("pelanggaran").order_by("timestamp", direction=firestore.Query.DESCENDING).stream()
+        return [doc.to_dict() for doc in docs]
+    except Exception as e:
+        print(f"Error fetching data: {e}")
+        return []
+
 def save_detection_result(data):
-    """Simpan data ke Firestore dengan proteksi NoneType"""
     global db
     if db is None:
         db = initialize_firebase()
@@ -53,7 +61,7 @@ def save_detection_result(data):
         db.collection("pelanggaran").add(data)
         return True
     except Exception as e:
-        print(f"Error save: {e}")
+        print(f"Error saving data: {e}")
         return False
 
 def get_all_detections():

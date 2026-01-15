@@ -1,16 +1,19 @@
 import streamlit as st
 
-# WAJIB: Perintah ini harus yang pertama kali dijalankan
+# LANGKAH 1: WAJIB PALING ATAS
 st.set_page_config(
     page_title="Sistem Deteksi Pelanggaran",
     layout="wide"
 )
 
+# LANGKAH 2: Import Library Standar
 import pandas as pd
 import os
 from PIL import Image
-from detect import run_detection
+
+# LANGKAH 3: Import File Lokal (Pindahkan ke sini)
 from firebase import get_all_detections
+from detect import run_detection
 
 # Sidebar Menu
 st.sidebar.title("🚦 Menu")
@@ -21,8 +24,11 @@ menu = st.sidebar.radio(
 
 @st.cache_data(ttl=60)
 def fetch_data():
-    data = get_all_detections()
-    return data if data is not None else []
+    try:
+        data = get_all_detections()
+        return data if data is not None else []
+    except:
+        return []
 
 raw_data = fetch_data()
 
