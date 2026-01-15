@@ -1,3 +1,10 @@
+import streamlit as st
+
+st.set_page_config(
+    page_title="Sistem Deteksi Pelanggaran",
+    layout="wide"
+)
+
 import os
 import streamlit as st
 import pandas as pd

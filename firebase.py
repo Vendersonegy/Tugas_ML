@@ -3,7 +3,7 @@ from firebase_admin import credentials, firestore
 import os
 import streamlit as st
 
-# Mendapatkan path absolut untuk penggunaan lokal
+# Path untuk penggunaan lokal
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 KEY_PATH = os.path.join(BASE_DIR, "firebase-key.json")
 
@@ -19,17 +19,18 @@ def initialize_firebase():
                 # Mengambil data dari [firebase] di Secrets TOML
                 secret_dict = dict(st.secrets["firebase"])
                 
-                # Membersihkan format private_key agar terbaca sebagai file PEM yang valid
+                # Pembersihan kunci privat agar format PEM valid
                 if "private_key" in secret_dict:
-                    # Menghapus spasi tambahan dan memperbaiki karakter newline
-                    cleaned_key = secret_dict["private_key"].strip().replace("\\n", "\n")
-                    secret_dict["private_key"] = cleaned_key
+                    # Menghapus spasi dan memperbaiki karakter newline
+                    pk = secret_dict["private_key"].strip().replace("\\n", "\n")
+                    secret_dict["private_key"] = pk
                 
                 cred = credentials.Certificate(secret_dict)
                 firebase_admin.initialize_app(cred)
                 return firestore.client()
             except Exception as e:
-                st.error(f"Gagal inisialisasi Firebase dari Secrets: {e}")
+                # Menampilkan error di sidebar agar tidak mengganggu layout utama
+                st.sidebar.error(f"Gagal inisialisasi Secrets: {e}")
 
         # 2. Coba inisialisasi menggunakan file JSON (untuk Lokal)
         if os.path.exists(KEY_PATH):
@@ -38,10 +39,8 @@ def initialize_firebase():
                 firebase_admin.initialize_app(cred)
                 return firestore.client()
             except Exception as e:
-                st.error(f"Gagal inisialisasi Firebase dari file lokal: {e}")
+                st.sidebar.error(f"Gagal inisialisasi File Lokal: {e}")
         
-        # Jika kedua metode di atas gagal
-        st.warning("⚠️ Database Firebase tidak terhubung. Cek Secrets di Cloud atau file JSON di Lokal.")
         return None
     
     # Jika sudah pernah diinisialisasi sebelumnya
@@ -51,44 +50,37 @@ def initialize_firebase():
 db = initialize_firebase()
 
 def save_detection_result(data):
-    """
-    Menyimpan data hasil deteksi ke koleksi 'pelanggaran'.
-    """
+    """Menyimpan data hasil deteksi ke Firestore"""
     global db
     if db is None:
-        db = initialize_firebase() # Mencoba inisialisasi ulang
-        if db is None:
-            return False
+        db = initialize_firebase()
+        if db is None: return False
             
     try:
         db.collection("pelanggaran").add(data)
         return True
     except Exception as e:
-        print(f"❌ Gagal menyimpan ke Firestore: {e}")
+        print(f"Error simpan data: {e}")
         return False
 
 def get_all_detections():
-    """
-    Mengambil semua data riwayat deteksi, diurutkan dari yang terbaru.
-    """
+    """Mengambil semua data riwayat deteksi"""
     global db
     if db is None:
         db = initialize_firebase()
-        if db is None:
-            return []
+        if db is None: return []
     
     try:
-        # Mengurutkan berdasarkan field 'timestamp' secara descending
         docs = db.collection("pelanggaran").order_by("timestamp", direction=firestore.Query.DESCENDING).stream()
         results = []
         for doc in docs:
             results.append(doc.to_dict())
         return results
     except Exception as e:
-        print(f"❌ Gagal mengambil data dari Firestore: {e}")
+        print(f"Error ambil data: {e}")
         return []
     
-    
+
 # import firebase_admin
 # from firebase_admin import credentials, firestore
 # import os
