@@ -36,7 +36,7 @@ def initialize_firebase():
 # Variabel db global
 db = initialize_firebase()
 
-def get_all_detections():
+def get_all_detections(limit = 100):
     global db
     if db is None:
         db = initialize_firebase()
